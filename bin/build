@@ -33,6 +33,7 @@ if [ "$qt_major" -lt 6 ] || { [ "$qt_major" -eq 6 ] && [ "$qt_minor" -lt 9 ]; };
     exit 1
 fi
 
+sh "$ROOT/bin/build-math" "$build_qmake"
 "$build_qmake" "$ROOT/hype.pro"
 # Objects built with another Qt version cannot be safely reused.
 if [ -f Makefile ] && [ "$(cat .qmake-used 2>/dev/null || true)" != "$build_qmake" ]; then

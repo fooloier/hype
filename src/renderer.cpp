@@ -1,6 +1,7 @@
 #include "renderer.h"
 #include "budget.h"
 #include "images.h"
+#include "math.h"
 #include "syntax.h"
 #include <QAbstractTextDocumentLayout>
 #include <QCache>
@@ -85,7 +86,7 @@ static QString outsideCode(QString source, bool maskInline = true) {
     }
     for (auto range : ranges)
         source.replace(range.first, range.second, QString(range.second, ' '));
-    return source;
+    return maskMath(source);
 }
 static QString withoutComments(QString source) {
     auto matches = QRegularExpression("<!--[\\s\\S]*?-->").globalMatch(outsideCode(source));
@@ -500,6 +501,11 @@ QStringList slideProblems(const QString &source, const QString &base) {
     }
     if (count + media.svgBlocks > 1)
         errors << "Use one media item per slide (combine artwork before importing)";
+    for (const auto &span : scanMath(media.text)) {
+        const auto formula = renderMath(span.latex, span.mode);
+        if (!formula->error.isEmpty())
+            errors << "Math: " + formula->error;
+    }
     return errors;
 }
 static QImage loadedImage(const QString &path, QSize canvas, bool span) {
@@ -691,6 +697,8 @@ static void sizeSlideText(QTextDocument &doc, const QVariantMap &palette, qreal 
         // Table cells keep the alignment their column's delimiter asked for.
         if (!cursor.currentTable())
             bf.setAlignment(centered ? Qt::AlignHCenter : Qt::AlignLeft);
+        if (isDisplayMath(block))
+            bf.setAlignment(Qt::AlignHCenter);
         bf.setTopMargin(level ? fontSize * 0.15 : 0);
         bf.setBottomMargin(fontSize * 0.22);
         bf.setLineHeight(115, QTextBlockFormat::ProportionalHeight);
@@ -727,7 +735,14 @@ static void sizeSlideText(QTextDocument &doc, const QVariantMap &palette, qreal 
                 cf.setProperty(QTextFormat::FontPixelSize, qRound(fontSize * 0.7));
             }
             cf.setForeground(color);
-            text.mergeCharFormat(cf);
+            QTextCharFormat mathFormat = fragment.charFormat();
+            if (mathFormat.objectType() >= QTextFormat::UserObject) {
+                mathFormat.merge(cf);
+                mathFormat.clearProperty(QTextFormat::FontSizeAdjustment);
+                sizeMath(mathFormat, cf.property(QTextFormat::FontPixelSize).toReal());
+                text.setCharFormat(mathFormat);
+            } else
+                text.mergeCharFormat(cf);
         }
     }
     for (auto it = doc.rootFrame()->begin(); !it.atEnd(); ++it)
@@ -772,7 +787,9 @@ static void sizeSlideText(QTextDocument &doc, const QVariantMap &palette, qreal 
 void layoutSlideText(QTextDocument &doc, const QString &markdown, const QVariantMap &palette,
                      qreal fontSize, qreal width, bool centered, bool code) {
     doc.setUndoRedoEnabled(false);
-    doc.setMarkdown(preserveLineBreaks(padTableCells(markdown)), QTextDocument::MarkdownDialectGitHub);
+    const auto math = extractMath(markdown);
+    doc.setMarkdown(preserveLineBreaks(padTableCells(math.source)), QTextDocument::MarkdownDialectGitHub);
+    insertMath(doc, math);
     sizeSlideText(doc, palette, fontSize, width, centered, code);
 }
 static QMutex fitMutex;
@@ -956,21 +973,22 @@ void paintSlide(QPainter *p, const QRectF &target, const QString &source, const 
         return;
     }
     if (!text.isEmpty()) {
-        bool code = text.contains(
+        const QString mathSource = extractMath(text).source;
+        bool code = mathSource.contains(
             QRegularExpression("^ {0,3}(`{3,}|~{3,})", QRegularExpression::MultilineOption));
-        bool quote = text.startsWith('>');
-        bool list = text.contains(
+        bool quote = mathSource.startsWith('>');
+        bool list = mathSource.contains(
             QRegularExpression("^\\s*(?:[-*+] |[0-9]+[.)] )", QRegularExpression::MultilineOption));
-        bool table = text.contains(tableDelimiter());
+        bool table = mathSource.contains(tableDelimiter());
         // A table alone on its slide sits in the middle; beside other text it lines up with it.
-        const bool tableOnly = table && !text.split('\n').filter(QRegularExpression("^(?!.*\\|).*\\S")).size();
+        const bool tableOnly = table && !mathSource.split('\n').filter(QRegularExpression("^(?!.*\\|).*\\S")).size();
         bool centered = tableOnly || !(code || quote || list || table);
         const QString alignment = slideProperty(source, "alignment");
         if (alignment == "left")
             centered = false;
         if (alignment == "center")
             centered = true;
-        bool stack = (text.contains('\n') || text.contains('\r')) && !text.startsWith('#') &&
+        bool stack = (mathSource.contains('\n') || mathSource.contains('\r')) && !mathSource.startsWith('#') &&
                      !quote && !list && !code;
         qreal low = 8, high = code ? 56 : quote ? 64 : list || table ? 72 : stack ? 128 : 76;
         if (media.video && !media.span)

@@ -6,6 +6,7 @@ TARGET = hype
 TEMPLATE = app
 HEADERS += src/deck.h src/renderer.h src/budget.h
 SOURCES += src/main.cpp src/deck.cpp src/renderer.cpp
+include(src/math.pri)
 RESOURCES += src/resources.qrc
 
 SOURCES += src/syntax.cpp

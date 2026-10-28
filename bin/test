@@ -3,9 +3,15 @@ set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 mkdir -p "$ROOT/build/tests"
 cd "$ROOT/build/tests"
+sh "$ROOT/bin/build-math" qmake6
 qmake6 "$ROOT/tests/tests.pro"
 make -j"$(nproc)"
 # The window-level tests catch the regressions unit tests miss, so they run by default.
 # Set HYPE_GUI_TESTS=0 to skip them, e.g. on a machine without multimedia.
 if [ "${HYPE_GUI_TESTS-1}" = 0 ]; then unset HYPE_GUI_TESTS; else export HYPE_GUI_TESTS=1; fi
 QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORMTHEME=generic QT_STYLE_OVERRIDE=Fusion ./hype-tests "$@"
+if [ "$#" -eq 0 ]; then
+    qmake6 "$ROOT/tests/math-tests.pro" -o Makefile.math
+    make -f Makefile.math -j"$(nproc)"
+    QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORMTHEME=generic QT_STYLE_OVERRIDE=Fusion ./hype-math-tests
+fi

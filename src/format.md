@@ -69,6 +69,35 @@ puts "Code is highlighted when you name the language"
 - `<!-- comments -->` are hidden from the slide; use them for speaker notes.
 - A `---` inside a code fence does not split the slide.
 
+## Mathematics
+
+Use `$E=mc^2$` for inline mathematics and `$$...$$` for a centered formula
+on its own paragraph. Display formulas can span consecutive nonblank lines.
+A blank line ends the search for a closing delimiter. Fractions, integrals,
+sums, roots, and matrices use LaTeX syntax, for example:
+
+```text
+The average is $\\frac{x+y}{2}$.
+
+$$
+\\int_0^1 x^2\\,dx = \\frac{1}{3}
+$$
+
+$$\\begin{pmatrix}a & b \\\\ c & d\\end{pmatrix}$$
+```
+
+Formulas follow text sizing and theme colors in previews, PNG, PDF, and
+PowerPoint. PDF formulas remain vector outlines. Formula `_`, `*`, and `|`
+characters are protected from Markdown, including inside table cells.
+
+Inline formulas stay on one source line, have no whitespace just inside the
+`$` delimiters, and cannot end immediately before a digit. Escape literal
+dollars as `\$`; ordinary prices such as `$9` and `$29` stay text. Code,
+comments, and link destinations do not contain formulas. Unclosed dollar
+delimiters stay text. Invalid closed formulas stay visible as source, and
+`hype check` and exports report the error. MicroTeX supports a subset of
+LaTeX; global macro, font, and color definitions are not supported.
+
 ## Images and video
 
 Each slide takes one image or video. Options go inside the brackets:

@@ -1,0 +1,43 @@
+#!/bin/sh
+set -eu
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+revision=0e3707f6dafebb121d98b53c64364d16fefe481d
+qmake=$(command -v "${1:-qmake6}")
+mkdir -p "$ROOT/build/deps"
+exec 8>"$ROOT/build/deps/math-build.lock"
+flock 8
+if [ -n "${HYPE_MICROTEX_SOURCE:-}" ]; then
+    source="$(CDPATH= cd -- "$HYPE_MICROTEX_SOURCE" && pwd)"
+else
+    source="$ROOT/build/deps/MicroTeX"
+    if [ ! -d "$source/.git" ]; then
+        if [ -d "$ROOT/build/math-probe/MicroTeX/.git" ]; then
+            git clone --no-checkout "$ROOT/build/math-probe/MicroTeX" "$source"
+        else
+            git clone --no-checkout https://github.com/NanoMichael/MicroTeX.git "$source"
+        fi
+    fi
+    if ! git -C "$source" cat-file -e "$revision^{commit}"; then
+        git -C "$source" fetch https://github.com/NanoMichael/MicroTeX.git "$revision"
+    fi
+    if [ ! -f "$source/src/latex.cpp" ] || [ "$(git -C "$source" rev-parse HEAD 2>/dev/null || true)" != "$revision" ]; then
+        git -C "$source" checkout --detach "$revision"
+    fi
+fi
+if [ "$(git -C "$source" rev-parse HEAD)" != "$revision" ]; then
+    printf 'MicroTeX source must be at pinned revision %s.\n' "$revision" >&2
+    exit 1
+fi
+if [ -n "$(git -C "$source" status --porcelain -- src res LICENSE)" ]; then
+    printf 'MicroTeX sources/resources differ from pinned revision %s.\n' "$revision" >&2
+    exit 1
+fi
+mkdir -p "$ROOT/build/deps/math"
+cd "$ROOT/build/deps/math"
+"$qmake" "$ROOT/src/mathengine.pro" "MICROTEX=\"$source\""
+if [ "$(cat .qmake-used 2>/dev/null || true)" != "$qmake" ]; then make clean; fi
+make -j"$(nproc)"
+printf '%s\n' "$qmake" > .qmake-used
+mkdir -p "$ROOT/build/math-res"
+cp -a "$source/res/." "$ROOT/build/math-res/"
+cp "$source/LICENSE" "$ROOT/build/math-res/MicroTeX-LICENSE"

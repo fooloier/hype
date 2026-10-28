@@ -5,6 +5,7 @@ TARGET = hype-tests
 INCLUDEPATH += ../src
 SOURCES += tests.cpp ../src/deck.cpp ../src/renderer.cpp
 HEADERS += ../src/deck.h ../src/renderer.h ../src/budget.h
+include(../src/math.pri)
 RESOURCES += ../src/resources.qrc
 
 SOURCES += ../src/syntax.cpp
