@@ -73,6 +73,7 @@ class Deck : public QAbstractListModel {
     QString source() const { return m_source; }
     QString slideSource() const;
     QString slideText() const;
+    Q_INVOKABLE QString normalizeSlideText(QString text) const;
     QString speakerNotes() const;
     int selected() const { return m_selected; }
     int selectionFirst() const { return qMin(m_anchor, m_selected); }

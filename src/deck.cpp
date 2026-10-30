@@ -237,13 +237,13 @@ QVariant Deck::data(const QModelIndex &index, int role) const {
 }
 QHash<int, QByteArray> Deck::roleNames() const { return {{NumberRole, "number"}}; }
 QString Deck::slideSource() const { return slide(m_selected); }
-static QString withoutSlidePadding(QString text) {
+QString Deck::normalizeSlideText(QString text) const {
     // Strip boundary lines, not indentation or Markdown hard-break spaces.
     text.remove(QRegularExpression("^(?:[ \\t]*\\r?\\n)+"));
     text.remove(QRegularExpression("(?:\\r?\\n[ \\t]*)+$"));
     return text.trimmed().isEmpty() ? QString() : text;
 }
-QString Deck::slideText() const { return withoutSlidePadding(slideSource()); }
+QString Deck::slideText() const { return normalizeSlideText(slideSource()); }
 QString Deck::speakerNotes() const { return ::speakerNotes(slideSource()); }
 QString Deck::slide(int i) const {
     return i >= 0 && i < count() ? m_parsed.slides[i].source : QString();
@@ -372,7 +372,7 @@ int Deck::sourceEndPosition() const { return m_parsed.slides.value(m_selected).e
 void Deck::editSource(const QString &s) { apply(s, m_selected); }
 void Deck::editSlide(const QString &s) {
     const auto range = m_parsed.slides.value(m_selected);
-    QString body = withoutSlidePadding(s);
+    QString body = normalizeSlideText(s);
     if (!body.isEmpty()) {
         if (range.start > 0)
             body.prepend('\n');
@@ -414,7 +414,7 @@ void Deck::replaceSlides(const QStringList &slides, int selected, int anchor) {
         if (i)
             out += "---\n";
         const int start = out.size();
-        const QString body = withoutSlidePadding(slides[i]);
+        const QString body = normalizeSlideText(slides[i]);
         if (!body.isEmpty()) {
             if (!out.isEmpty())
                 out += '\n';

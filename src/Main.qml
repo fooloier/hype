@@ -376,8 +376,11 @@ ApplicationWindow {
     }
     function syncEditors() {
         syncingEditor = true
-        if (!editingSlide && slideEditor.text !== deck.slideText) slideEditor.text = deck.slideText
-        if (lastSelected !== deck.selected) {
+        const modelText = deck.slideText
+        const switched = lastSelected !== deck.selected
+        if (!editingSlide && slideEditor.text !== modelText &&
+            (switched || deck.normalizeSlideText(slideEditor.text) !== modelText)) slideEditor.text = modelText
+        if (switched) {
             sourceOnlyCursor = -1
             slideEditor.cursorPosition = 0
             if (!sourceEditor.activeFocus) sourceEditor.cursorPosition = slideTextPosition()

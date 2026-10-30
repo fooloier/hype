@@ -1888,6 +1888,95 @@ static void write(const QString &path, const QString &content) {
         QCOMPARE(empty.property("start").toInt(), 2);
         QCOMPARE(empty.property("end").toInt(), 11);
     }
+    void autosavePreservesSlideEditorCursor_data() {
+        QTest::addColumn<bool>("followingSlides");
+        QTest::addColumn<QString>("suffix");
+        QTest::addColumn<QString>("canonicalSuffix");
+        QTest::newRow("single-slide-enter") << false << QString("\n") << QString();
+        QTest::newRow("non-last-slide-enter") << true << QString("\n") << QString();
+        QTest::newRow("single-slide-two-enters") << false << QString("\n\n") << QString();
+        QTest::newRow("non-last-slide-two-enters") << true << QString("\n\n") << QString();
+        QTest::newRow("single-slide-hard-break") << false << QString("  \n") << QString("  ");
+        QTest::newRow("non-last-slide-hard-break") << true << QString("  \n") << QString("  ");
+        QTest::newRow("single-slide-blank-padding") << false << QString("\n \n") << QString();
+        QTest::newRow("non-last-slide-blank-padding") << true << QString("\n \n") << QString();
+    }
+    void autosavePreservesSlideEditorCursor() {
+        if (!qEnvironmentVariableIsSet("HYPE_GUI_TESTS"))
+            QSKIP("Set HYPE_GUI_TESTS=1 with local graphics access");
+        QFETCH(bool, followingSlides);
+        QFETCH(QString, suffix);
+        QFETCH(QString, canonicalSuffix);
+        QTemporaryDir files;
+        QVERIFY(files.isValid());
+        const QString path = files.filePath("presentation.md");
+        const QString initial = "# Start\n\nBody";
+        const QString canonical = initial + "x" + canonicalSuffix;
+        write(path, initial + (followingSlides
+            ? "\n\n---\n\n# Following\n\n---\n\n" + canonical + "\n" : "\n"));
+        Deck deck;
+        QVERIFY(deck.loadPath(path, false));
+        QCOMPARE(deck.count(), followingSlides ? 3 : 1);
+        deck.enableAutosave(files.filePath("recovery"));
+        QQuickStyle::setStyle("Basic");
+        qmlRegisterType<SlideItem>("Hype", 1, 0, "SlideCanvas");
+        qmlRegisterType<AppTheme>("Hype", 1, 0, "AppTheme");
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("deck", &deck);
+        engine.addImageProvider("slides", new Thumbnails(&deck));
+        engine.load(QUrl("qrc:/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        auto editor = window->findChild<QQuickItem *>("slideEditor");
+        QVERIFY(editor);
+        QTest::qWait(100);
+        editor->forceActiveFocus();
+        QTRY_VERIFY(editor->hasActiveFocus());
+        QCOMPARE(editor->property("text").toString(), initial);
+        QTest::keyClick(window, Qt::Key_End, Qt::ControlModifier);
+        QTest::keyClick(window, Qt::Key_X);
+        for (const QChar character : suffix)
+            QTest::keyClick(window, character == '\n' ? Qt::Key_Return : Qt::Key_Space);
+        const QString expected = initial + "x" + suffix;
+        const int expectedCursor = expected.size();
+        QCOMPARE(editor->property("text").toString(), expected);
+        QCOMPARE(editor->property("cursorPosition").toInt(), expectedCursor);
+        QVERIFY(deck.dirty());
+        QTRY_VERIFY_WITH_TIMEOUT(!deck.dirty(), 5000);
+        QCOMPARE(editor->property("text").toString(), expected);
+        QCOMPARE(editor->property("cursorPosition").toInt(), expectedCursor);
+        QVERIFY(editor->hasActiveFocus());
+        QTest::keyClick(window, Qt::Key_Y);
+        QCOMPARE(editor->property("text").toString(), expected + "y");
+        QCOMPARE(editor->property("cursorPosition").toInt(), expectedCursor + 1);
+        QCOMPARE(deck.slideText(), expected + "y");
+        deck.undo();
+        QCOMPARE(deck.slideText(), canonical);
+        QCOMPARE(editor->property("text").toString(), canonical);
+        deck.editSlide("# Replaced");
+        QCOMPARE(editor->property("text").toString(), QString("# Replaced"));
+        deck.undo();
+        QCOMPARE(editor->property("text").toString(), canonical);
+        if (followingSlides) {
+            const QString source = deck.source();
+            QTest::keyClick(window, Qt::Key_End, Qt::ControlModifier);
+            QTest::keyClick(window, Qt::Key_Return);
+            QCOMPARE(editor->property("text").toString(), canonical + "\n");
+            deck.select(1);
+            QCOMPARE(editor->property("text").toString(), QString("# Following"));
+            QCOMPARE(editor->property("cursorPosition").toInt(), 0);
+            deck.select(0);
+            QCOMPARE(editor->property("text").toString(), canonical);
+            QTest::keyClick(window, Qt::Key_End, Qt::ControlModifier);
+            QTest::keyClick(window, Qt::Key_Return);
+            QCOMPARE(editor->property("text").toString(), canonical + "\n");
+            deck.select(2);
+            QCOMPARE(editor->property("text").toString(), canonical);
+            QCOMPARE(editor->property("cursorPosition").toInt(), 0);
+            QCOMPARE(deck.source(), source);
+        }
+    }
     void typingCodeInVisualEditorKeepsTheDeck() {
         if (!qEnvironmentVariableIsSet("HYPE_GUI_TESTS"))
             QSKIP("Set HYPE_GUI_TESTS=1 with local graphics access");
