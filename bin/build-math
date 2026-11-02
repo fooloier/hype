@@ -34,6 +34,12 @@ if [ -n "$(git -C "$source" status --porcelain -- src res LICENSE)" ]; then
 fi
 mkdir -p "$ROOT/build/deps/math"
 cd "$ROOT/build/deps/math"
+patch --batch --forward --fuzz=0 -o macro_impl.cpp.tmp "$source/src/core/macro_impl.cpp" < "$ROOT/src/microtex-empty-size.patch"
+if cmp -s macro_impl.cpp.tmp macro_impl.cpp; then
+    rm macro_impl.cpp.tmp
+else
+    mv macro_impl.cpp.tmp macro_impl.cpp
+fi
 "$qmake" "$ROOT/src/mathengine.pro" "MICROTEX=\"$source\""
 if [ "$(cat .qmake-used 2>/dev/null || true)" != "$qmake" ]; then make clean; fi
 make -j"$(nproc)"

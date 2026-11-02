@@ -10,5 +10,7 @@ ENGINE_DIRS = atom box core fonts utils res/builtin res/font res/parser res/reg 
 for(dir, ENGINE_DIRS) {
     SOURCES += $$files("$$MICROTEX/src/$$dir/*.cpp")
 }
+SOURCES -= "$$MICROTEX/src/core/macro_impl.cpp"
+SOURCES += "$$OUT_PWD/macro_impl.cpp"
 SOURCES += "$$MICROTEX/src/latex.cpp" "$$MICROTEX/src/render.cpp" \
     "$$MICROTEX/src/platform/qt/graphic_qt.cpp" "$$PWD/mathengine.cpp"

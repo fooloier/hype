@@ -216,6 +216,41 @@ class MathTests : public QObject {
         }
         QCOMPARE(normal, highDpi);
     }
+    void sizeDeclarations() {
+        const QStringList commands = {"tiny", "scriptsize", "footnotesize", "small", "normalsize",
+                                      "large", "Large", "LARGE", "huge", "Huge"};
+        for (const auto &command : commands) {
+            for (const auto &body : {QString(" "), QString("\n"), QString("\t"), QString("{}"), QString("% empty\n")}) {
+                const QString latex = "\\" + command + body;
+                for (const auto mode : {MathMode::Inline, MathMode::Display}) {
+                    const auto empty = renderMath(latex, mode);
+                    QVERIFY2(empty->error.isEmpty(), qPrintable(latex + ": " + empty->error));
+                    QVERIFY(empty->drawing.isEmpty());
+                    const auto nested = renderMath("x{" + latex + "}y", mode);
+                    QVERIFY2(nested->error.isEmpty(), qPrintable(nested->error));
+                    QVERIFY(!nested->drawing.isEmpty());
+                    const auto fraction = renderMath("\\frac{" + latex + "}{2}", mode);
+                    QVERIFY2(fraction->error.isEmpty(), qPrintable(fraction->error));
+                    QVERIFY(!fraction->drawing.isEmpty());
+                }
+            }
+        }
+        for (const auto &latex : {QString("\\displaystyle\\large "), QString("\\sf\\large "),
+                                  QString("\\tt\\large "), QString("\\large\\small ")}) {
+            const auto empty = renderMath(latex, MathMode::Display);
+            QVERIFY2(empty->error.isEmpty(), qPrintable(latex + ": " + empty->error));
+            QVERIFY(empty->drawing.isEmpty());
+        }
+        const auto normal = renderMath("x", MathMode::Display);
+        const auto large = renderMath("\\large x", MathMode::Display);
+        QVERIFY(large->error.isEmpty());
+        QVERIFY(large->width > normal->width);
+        QTextDocument doc;
+        const QString source = "$$\n\\large\n$$";
+        layoutSlideText(doc, source, palette(), 48, 900, false, false);
+        QCOMPARE(objects(doc), 1);
+        QVERIFY(slideProblems(source, ".").isEmpty());
+    }
     void invalidFormulaAndMedia() {
         const QString source = R"(Bad $\unknownHypeMacro{x}$ and $\frac{1}{$)";
         QTextDocument doc;
