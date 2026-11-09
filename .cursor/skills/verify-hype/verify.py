@@ -18,7 +18,7 @@ BASE = ROOT / 'build/verification'
 APP = ROOT / 'build/hype'
 TESTS = ROOT / 'build/tests/hype-tests'
 GUI = {
-    'overview': ['overviewMode'],
+    'overview': ['overviewMode', 'visualSplitterDrag'],
     'editing': ['autosavePreservesSlideEditorCursor', 'typingCodeInVisualEditorKeepsTheDeck'],
     'media': ['visualOperations', 'placeMenuPlacesImage'],
     'presenter': ['presenterViewUsesSeparateScreens'],
@@ -142,6 +142,7 @@ def gui(run, journey):
     doctor(run)
     env = environment(run)
     env['HYPE_GUI_TESTS'] = '1'
+    env['HYPE_SPLITTER_SCREENSHOT_DIR'] = str(run / 'evidence')
     for key, filename in [('HYPE_MENU_SCREENSHOT', 'overview-menu.png'),
                           ('HYPE_SHORTCUTS_SCREENSHOT', 'shortcuts.png'),
                           ('HYPE_FILE_MENU_SCREENSHOT', 'file-menu.png'),
@@ -156,6 +157,11 @@ def gui(run, journey):
         for name in ('overview-menu.png', 'shortcuts.png', 'file-menu.png'):
             if not (run / 'evidence' / name).is_file():
                 raise RuntimeError(f'Missing GUI proof: {name}')
+        for size in ('default-window', 'minimum-window'):
+            for state in ('before', 'expanded'):
+                name = f'splitter-{size}-{state}.png'
+                if not (run / 'evidence' / name).is_file():
+                    raise RuntimeError(f'Missing GUI proof: {name}')
     (run / 'evidence' / f'{journey}-result.json').write_text(json.dumps({
         'journey': journey, 'tests': GUI[journey], 'status': 'passed',
         'surface': 'real Main.qml in Qt Test, offscreen software rendering',

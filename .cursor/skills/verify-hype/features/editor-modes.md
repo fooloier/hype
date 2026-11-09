@@ -8,6 +8,7 @@ Users write individual slides in Visual mode, edit the document in Markdown mode
 - `slide-navigate`: grid/sidebar selection, arrows, row jumps and Enter.
 - `slide-organize`: move, range-select, drag, duplicate, add and delete.
 - `discover-controls`: slide context menu, file menu and shortcut overlay.
+- `visual-splitter`：拖动预览和编辑区之间的分隔条，调整两区高度。
 
 ## How to get to it (user POV)
 
@@ -16,6 +17,7 @@ Users write individual slides in Visual mode, edit the document in Markdown mode
 - Click a sidebar/grid slide; use arrows, Page Up/Down, Home/End and Shift selection. Enter or double-click a grid slide opens Visual mode.
 - Drag slides, use Ctrl+arrows to move, Ctrl+D to duplicate, Ctrl+Enter to add, or Delete to remove. Right-click a slide for its menu.
 - Click the Hype logo, press `?` or F1 for shortcuts. Click the file icon for file actions.
+- 在 Visual 模式按住预览与编辑工具栏之间的横向分隔条，上下拖动。
 
 ## Driving it with verify-hype
 
@@ -23,7 +25,8 @@ Preconditions:
 
 - Launch/doctor passed. The Qt journey seeds twelve slides S1–S12 independently of the baseline CLI deck.
 
-- **Run the journey.** `.cursor/skills/verify-hype/verify.py gui "$RUN" overview` runs `overviewMode` with verbose assertions. Require the test to pass without skips.
+- **运行验证。** `.cursor/skills/verify-hype/verify.py gui "$RUN" overview` 运行 `overviewMode` 和 `visualSplitterDrag`，记录详细断言。两个测试都必须通过，且不能跳过。
+- **验证分隔条。** `visualSplitterDrag` 在 1400×900 和 900×600 窗口中发送真实鼠标事件，检查向上拖动 60 像素、向下拖动 80 像素、编辑区最小与最大高度，以及 Markdown 和 Overview 切换后的尺寸保持。检查 `splitter-default-window-before.png`、`splitter-default-window-expanded.png` 和对应的 `minimum-window` 截图。文本内容必须保持不变。
 - **Switch modes.** The journey presses Ctrl+M/Ctrl+period and clicks `overviewButton`/`modeButton`, checking `mode`, `overviewGrid`, `thumbnails` and `editorPane` after transitions. Overview returns to the prior Visual or Markdown mode.
 - **Navigate and reorder.** The journey clicks grid cells using current cell geometry, sends arrow/page/home/end keys and Ctrl+Down, and drags S1 after S2. It asserts selected indices and slide text. Some range preconditions and undo steps use model methods; these are not proof of UI range selection or UI undo.
 - **Discover controls.** It right-clicks the selected grid slide, opens shortcuts through the logo and `?`, opens/closes `fileMenu` through `fileButton`, and presses Enter to return to Visual. Expect `overview-menu.png`, `shortcuts.png`, and `file-menu.png` under evidence, plus passing state assertions.

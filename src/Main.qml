@@ -1476,13 +1476,13 @@ ApplicationWindow {
             visible: (!win.markdown && !win.overview) || win.presenting
             Layout.fillWidth: true; Layout.fillHeight: true
             Layout.margins: win.presenting ? 0 : win.inset; Layout.leftMargin: 0
-            background: Rectangle { color: win.ui.background }
             handle: Rectangle {
                 implicitHeight: win.presenting ? 0 : 6
                 color: SplitHandle.hovered || SplitHandle.pressed ? win.ui.accent : win.ui.border
             }
-            Item {
+            Rectangle {
                 id: stage; objectName: "stage"; SplitView.fillHeight: true; SplitView.minimumHeight: 160; focus: true
+                color: win.ui.background
                 property real margin: win.presenting ? 0 : 32
                 property real slideWidth: Math.min(width-margin*2,(height-margin*2)*16/9)
                 Item {

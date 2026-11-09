@@ -2073,6 +2073,80 @@ static void write(const QString &path, const QString &content) {
         QCOMPARE(source->property("selectedText").toString(), QString("edited"));
         QCOMPARE(deck.count(), 5);
     }
+    void visualSplitterDrag_data() {
+        QTest::addColumn<QSize>("windowSize");
+        QTest::newRow("default-window") << QSize(1400, 900);
+        QTest::newRow("minimum-window") << QSize(900, 600);
+    }
+    void visualSplitterDrag() {
+        if (!qEnvironmentVariableIsSet("HYPE_GUI_TESTS"))
+            QSKIP("Set HYPE_GUI_TESTS=1 with local graphics access");
+        QFETCH(QSize, windowSize);
+        QQuickStyle::setStyle("Basic");
+        qmlRegisterType<SlideItem>("Hype", 1, 0, "SlideCanvas");
+        qmlRegisterType<AppTheme>("Hype", 1, 0, "AppTheme");
+        Deck d;
+        d.editSource("# Splitter\n\nDrag the divider to resize the preview and editor.\n");
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("deck", &d);
+        engine.addImageProvider("slides", new Thumbnails(&d));
+        engine.load(QUrl("qrc:/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(windowSize);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto stage = window->findChild<QQuickItem *>("stage");
+        auto editor = window->findChild<QQuickItem *>("editorPane");
+        QVERIFY(stage && editor);
+        QTest::qWait(100);
+        const QString screenshots = qEnvironmentVariable("HYPE_SPLITTER_SCREENSHOT_DIR");
+        if (!screenshots.isEmpty())
+            QVERIFY(window->grabWindow().save(screenshots + "/splitter-" + QTest::currentDataTag() + "-before.png"));
+        const qreal initialHeight = editor->height();
+        const qreal initialStageHeight = stage->height();
+        auto drag = [&](int distance) {
+            const QPoint start = editor->mapToScene(QPointF(editor->width() / 2, -3)).toPoint();
+            QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, start);
+            for (int step = 1; step <= 6; ++step)
+                QTest::mouseMove(window, start + QPoint(0, distance * step / 6), 10);
+            QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, start + QPoint(0, distance));
+            QTest::qWait(50);
+            qInfo() << "Splitter drag" << distance << "editor" << editor->height() << "preview" << stage->height();
+        };
+        qInfo() << "Splitter before drag" << windowSize << "editor" << initialHeight << "preview" << initialStageHeight;
+        drag(-60);
+        QVERIFY2(qAbs(editor->height() - initialHeight - 60) <= 1,
+                 "Dragging the divider upward must grow the editor by the pointer movement");
+        QVERIFY(qAbs(stage->height() - initialStageHeight + 60) <= 1);
+        if (!screenshots.isEmpty())
+            QVERIFY(window->grabWindow().save(screenshots + "/splitter-" + QTest::currentDataTag() + "-expanded.png"));
+        drag(80);
+        QVERIFY2(qAbs(editor->height() - initialHeight + 20) <= 1,
+                 "Dragging the divider downward must shrink the editor by the pointer movement");
+        QVERIFY(qAbs(stage->height() - initialStageHeight - 20) <= 1);
+        drag(1000);
+        QCOMPARE(editor->height(), 140);
+        drag(-1000);
+        const qreal workspaceHeight = stage->parentItem()->height();
+        QVERIFY(qAbs(editor->height() - workspaceHeight * 0.65) <= 1);
+        QVERIFY(stage->height() >= 160);
+        QVERIFY(qAbs(editor->height() + stage->height() - initialHeight - initialStageHeight) <= 1);
+        const qreal resizedHeight = editor->height();
+        QTest::keyClick(window, Qt::Key_Period, Qt::ControlModifier);
+        QCOMPARE(window->property("mode").toString(), QString("markdown"));
+        QVERIFY(!editor->isVisible());
+        QTest::keyClick(window, Qt::Key_Period, Qt::ControlModifier);
+        QTRY_VERIFY(editor->isVisible());
+        QTRY_COMPARE(editor->height(), resizedHeight);
+        QTest::keyClick(window, Qt::Key_M, Qt::ControlModifier);
+        QCOMPARE(window->property("mode").toString(), QString("overview"));
+        QVERIFY(!editor->isVisible());
+        QTest::keyClick(window, Qt::Key_M, Qt::ControlModifier);
+        QTRY_VERIFY(editor->isVisible());
+        QTRY_COMPARE(editor->height(), resizedHeight);
+        QCOMPARE(d.source(), QString("# Splitter\n\nDrag the divider to resize the preview and editor.\n"));
+    }
     void overviewMode() {
         if (!qEnvironmentVariableIsSet("HYPE_GUI_TESTS"))
             QSKIP("Set HYPE_GUI_TESTS=1 with local graphics access");
